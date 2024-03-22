@@ -1,0 +1,29 @@
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+}
+
+.QuiltApp {
+	display: flex;
+	height: 100dvh;
+	width: 100dvw;
+}
+
+.QuiltSidebar {
+	width: 240px;
+}
+
+.QuiltViewport {
+	flex: 1;
+}
+
+.QuiltThreadNotes {
+	display: flex;
+	flex-direction: column;
+}
