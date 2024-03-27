@@ -1,164 +1,53 @@
-import {ComponentChildren} from "preact"
-import {Signal, batch, signal, useSignal} from "@preact/signals"
-import {useEffect, useRef} from "preact/hooks"
+import {createContext} from "preact"
+import {useContext} from "preact/hooks"
+import {CommandPalette} from "./CommandPalette.js"
+import {AppState} from "./Main.js"
+import {NoteList, NoteView} from "./NoteView.js"
+import {WithChildren} from "./util/ReactUtil.js"
 
-interface Entity {
-	id: string
-	createdAt: Date
-	modifiedAt: Date
+export interface AppContext {
+	state: AppState
 }
 
-interface Thread extends Entity {
-	name: Signal<string>
-	notes: Signal<Note[]>
+const AppContext = createContext<AppContext>(null!)
+
+export function useAppContext(): AppContext {
+	return useContext(AppContext)
 }
 
-interface Note extends Entity {
-	text: Signal<string>
-	tags: Signal<Tag[]>
-}
-
-interface Tag extends Entity {
-	name: string
-}
-
-function createEntity(): Entity {
-	const date = new Date()
-	return {
-		id: uuid(),
-		createdAt: date,
-		modifiedAt: date,
-	}
-}
-
-function uuid(): string {
-	return `${Date.now()}` // TODO
-}
-
-function createThread(): Thread {
-	return {
-		...createEntity(),
-		name: signal(""),
-		notes: signal([]),
-	}
-}
-
-function createNote(): Note {
-	return {
-		...createEntity(),
-		text: signal(""),
-		tags: signal([]),
-	}
-}
-
-function createTag(): Tag {
-	return {
-		...createEntity(),
-		name: "",
-	}
-}
-
-interface AppState {
-	threads: Signal<Thread[]>
-	currentThread: Signal<Thread | null>
-}
-const state: AppState = {
-	threads: signal([]),
-	currentThread: signal(null),
-}
-
-const defaultThread = createThread()
-defaultThread.name.value = "Journal"
-
-state.threads.value = [defaultThread]
-state.currentThread.value = defaultThread
-
-export const App = () => {
+export const App = ({context}: {context: AppContext}) => {
 	return (
-		<QuiltApp>
-			<QuiltSidebar />
-			<QuiltViewport />
-		</QuiltApp>
+		<AppContext.Provider value={context}>
+			<AppLayout>
+				<Viewport />
+				<CommandPalette />
+			</AppLayout>
+		</AppContext.Provider>
 	)
 }
 
-const QuiltApp = ({children}: {children: ComponentChildren}) => {
-	return <div className="QuiltApp">{children}</div>
+interface AppLayoutProps extends WithChildren {}
+const AppLayout = ({children}: AppLayoutProps) => {
+	return <div className="AppLayout">{children}</div>
 }
 
-const QuiltSidebar = () => {
-	return (
-		<section className="QuiltSidebar">
-			<QuiltThreadList />
-		</section>
-	)
-}
+const Viewport = () => {
+	const context = useAppContext()
 
-const QuiltThreadList = () => {
-	return null
-}
-
-const QuiltViewport = () => {
-	const currentThread = state.currentThread.value
-	return (
-		<section className="QuiltViewport">
-			{currentThread && <QuiltThreadView thread={currentThread} />}
-		</section>
-	)
-}
-
-const QuiltThreadView = ({thread}: {thread: Thread}) => {
-	const focusedNote = useSignal<Note | null>(null)
-
-	useEffect(() => {
-		function handleKeydown(e: KeyboardEvent) {
-			if ((e.ctrlKey || e.metaKey) && e.key === "n") {
-				batch(() => {
-					const note = createNote()
-					thread.notes.value = [...thread.notes.value, note]
-					focusedNote.value = note
-				})
-			}
+	function renderCurrentView() {
+		const currentNote = context.state.currentNote.value
+		if (currentNote) {
+			return (
+				<>
+					<section className="PrimarySidebar Panel">
+						<NoteList />
+					</section>
+					<NoteView note={currentNote} />
+				</>
+			)
 		}
-		document.addEventListener("keydown", handleKeydown)
-		return () => {
-			document.removeEventListener("keydown", handleKeydown)
-		}
-	}, [thread, focusedNote])
+		return null
+	}
 
-	return (
-		<div className="QuiltThreadView">
-			<h1>{thread.name}</h1>
-			<div className="QuiltThreadNotes">
-				{thread.notes.value.map((note) => {
-					return (
-						<QuiltNote
-							key={note.id}
-							note={note}
-							focused={focusedNote.value === note}
-						/>
-					)
-				})}
-			</div>
-		</div>
-	)
-}
-
-const QuiltNote = ({note, focused}: {note: Note; focused: boolean}) => {
-	const ref = useRef<HTMLDivElement | null>(null)
-	useEffect(() => {
-		if (ref.current && focused) {
-			ref.current.querySelector("input")?.focus()
-		}
-	}, [focused])
-	return (
-		<div className="QuiltNote" data-note-id={note.id} ref={ref}>
-			<input
-				value={note.text}
-				onChange={(e) => {
-					note.text.value = e.currentTarget.value
-				}}
-			/>
-		</div>
-	)
+	return <section className="Viewport">{renderCurrentView()}</section>
 }

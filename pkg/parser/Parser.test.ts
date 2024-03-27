@@ -1,36 +1,46 @@
-import {expect, test} from "bun:test"
-import {parseNoteLiteral} from "./Parser.js"
+import {expect, test, describe} from "bun:test"
+import {parseTodoLiteral} from "./Parser.js"
 
-test("parseNoteLiteral", () => {
-	expect(parseNoteLiteral("")).toEqual({
-		note: {
-			text: "",
-			tags: [],
-			timestamp: null,
-		},
+describe("parseTodoLiteral", () => {
+	test("returns an empty todo when the input is empty", () => {
+		expect(parseTodoLiteral("")).toEqual({
+			todo: {
+				text: "",
+				tags: [],
+			},
+		})
+		expect(parseTodoLiteral("            ")).toEqual({
+			todo: {
+				text: "",
+				tags: [],
+			},
+		})
 	})
 
-	expect(parseNoteLiteral('"hello"')).toEqual({
-		note: {
-			text: "hello",
-			tags: [],
-			timestamp: null,
-		},
+	test("parses simple text content", () => {
+		expect(parseTodoLiteral('"hello"')).toEqual({
+			todo: {
+				text: "hello",
+				tags: [],
+			},
+		})
 	})
 
-	expect(parseNoteLiteral('"hello world"')).toEqual({
-		note: {
-			text: "hello world",
-			tags: [],
-			timestamp: null,
-		},
+	test("allows whitespace inside of text content", () => {
+		expect(parseTodoLiteral('"hello world"')).toEqual({
+			todo: {
+				text: "hello world",
+				tags: [],
+			},
+		})
 	})
 
-	expect(parseNoteLiteral('"hello world" +foo +bar')).toEqual({
-		note: {
-			text: "hello world",
-			tags: [{name: "foo"}, {name: "bar"}],
-			timestamp: null,
-		},
+	test("parses simple tags", () => {
+		expect(parseTodoLiteral('"hello world" +foo +bar')).toEqual({
+			todo: {
+				text: "hello world",
+				tags: [{name: "foo"}, {name: "bar"}],
+			},
+		})
 	})
 })

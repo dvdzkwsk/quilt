@@ -1,38 +1,22 @@
-export interface NoteLiteral {
+export interface TodoLiteral {
 	text: string
 	tags: TagLiteral[]
-	timestamp: string | null
 }
 
 export interface TagLiteral {
 	name: string
 }
 
-export interface ParseResult {
-	note: NoteLiteral
+export interface ParseTodoLiteralResult {
+	todo: TodoLiteral
 }
-export function parseNoteLiteral(input: string): ParseResult {
-	const note: NoteLiteral = {
+export function parseTodoLiteral(input: string): ParseTodoLiteralResult {
+	const todo: TodoLiteral = {
 		text: "",
 		tags: [],
-		timestamp: null,
 	}
 
 	let cursor = 0
-
-	function parseTimestamp(): string {
-		cursor++
-
-		let timestamp = ""
-		while (cursor < input.length) {
-			const char = input[cursor++]
-			if (char === "]") {
-				return timestamp
-			}
-			timestamp += char
-		}
-		throw new Error("unterminated timestamp literal")
-	}
 
 	function parseText(): string {
 		cursor++
@@ -67,18 +51,15 @@ export function parseNoteLiteral(input: string): ParseResult {
 			case " ":
 				cursor++
 				break
-			case "[":
-				note.timestamp = parseTimestamp()
-				break
 			case '"':
-				note.text = parseText()
+				todo.text = parseText()
 				break
 			case "+":
 				const tag = parseTag()
-				note.tags.push(tag)
+				todo.tags.push(tag)
 				break
 		}
 	}
 
-	return {note}
+	return {todo}
 }

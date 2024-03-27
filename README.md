@@ -27,36 +27,30 @@ bun test
     -   reminders (sorted by nearest)
 
 ```sh
-# create a new note
-quilt new "this is a note"
+# create a todo
+quilt todo "this is a todo"
 
-# create a new note with tags (TODO: syntax)
-quilt new "give Kona a bath" +kona +todo +urgent
-quilt new "give Kona a bath" #kona #todo #urgent
+# create a todo with tags (TODO: syntax)
+quilt todo "give Kona a bath" +kona +urgent
+quilt todo "give Kona a bath" #kona #urgent
 
-# create a new note with a reminder
-quilt new "give Kona a bath" ~2weeks
+# create a todo that repeats (TODO: syntax)
+quilt todo "give Kona a bath" ~2w
+quilt todo "give Kona a bath" repeat:2w
 
-# add metadata to a note
-quilt new "give Kona a bath" .field:value
+# print all todos in literal, single-line format for easy grepping
+quilt todos
 
-# print all notes in literal, single-line format for easy grepping
-# possibly with `quilt notes` as an alias
-quilt select
+# query todos
+quilt todos +withThisTag -andNotThisTag
 
-# query notes
-quilt select "has this text" +hasThisTag -withoutThisTag
+# create a smart list
+quilt todos +hasThisTag -andNotThisTag --save-as="My List"
 
-# save a query as a thread
-quilt select "has this text" --to=@thread
+# view a smart list (TODO: syntax)
+quilt view "My List"
 
-# query notes with a manual SQL query
-quilt select --sql "SELECT text FROM notes ORDER BY createdAt"
-
-# print all notes in a thread (TODO: syntax)
-quilt select --from=@thread
-
-# show reminders for today
+# show todos for today
 # should be built on our own primitives,
 # e.g. `quilt select .createdAt>={day_start(today)} .createdAt<={day_end(today)}`
 quilt today

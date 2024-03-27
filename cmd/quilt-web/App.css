@@ -1,0 +1,16 @@
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+}
+
+.AppLayout {
+	display: flex;
+	height: 100dvh;
+	width: 100dvw;
+}
