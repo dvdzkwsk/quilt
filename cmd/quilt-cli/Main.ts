@@ -69,6 +69,7 @@ async function ensureQuiltNotebook(dir: string) {
 		await fs.promises.mkdir(journalDir, {recursive: true})
 	}
 	// TODO(david): validate that what exists in this file is what we expect.
+	// TODO(david): register the notebook with global registry
 }
 
 async function getTodosForDate(config: AppConfig, date: Date): Promise<Todo[]> {
@@ -198,43 +199,26 @@ function isDirectoryQuiltNotebook(dir: string): boolean {
 	return fs.existsSync(path.join(dir, ".quilt"))
 }
 
+function findNearestQuiltNotebook(dir: string): string | null {
+	logger.debug("findNearestQuiltNotebook", "check for .quilt directory", {
+		dir,
+	})
+	if (isDirectoryQuiltNotebook(dir)) {
+		return dir
+	} else {
+		const parent = path.dirname(dir)
+		if (parent && parent !== dir) {
+			return findNearestQuiltNotebook(parent)
+		}
+	}
+	return null
+}
+
 async function loadAppConfig(): Promise<AppConfig> {
 	const config: Partial<AppConfig> = {
-		notebookDir: "",
+		notebookDir: await getActiveNotebook(),
 	}
-	if (process.env["QUILT_DEFAULT_NOTEBOOK"]) {
-		const dir = process.env["QUILT_DEFAULT_NOTEBOOK"]
-		if (!isDirectoryQuiltNotebook(dir)) {
-			logger.warn(
-				"loadAppConfig",
-				"$QUILT_DEFAULT_NOTEBOOK is not a valid quilt notebook",
-				{dir},
-			)
-		} else {
-			config.notebookDir = dir
-		}
-	}
-	if (!config.notebookDir) {
-		function findNearestQuiltNotebook(dir: string): string | null {
-			logger.debug("loadAppConfig", "findNearestQuiltNotebook", {dir})
-			if (isDirectoryQuiltNotebook(dir)) {
-				return dir
-			} else {
-				const parent = path.dirname(dir)
-				if (parent && parent !== dir) {
-					return findNearestQuiltNotebook(parent)
-				}
-			}
-			return null
-		}
-		const dir = findNearestQuiltNotebook(process.cwd())
-		if (dir) {
-			config.notebookDir = dir
-		}
-	}
-	if (!config.notebookDir) {
-		throw logger.newError("loadAppConfig", "could not find quilt notebook")
-	}
+
 	const result = AppConfig.safeParse(config)
 	if (!result.success) {
 		throw logger.newError("loadAppConfig", "invalid app config", {
@@ -243,6 +227,47 @@ async function loadAppConfig(): Promise<AppConfig> {
 		})
 	}
 	return result.data
+}
+
+async function getActiveNotebook(): Promise<string> {
+	let notebook: string | null = null
+
+	notebook = process.env["QUILT_NOTEBOOK"]!
+	if (notebook) {
+		logger.debug(
+			"getActiveNotebook",
+			"using notebook specified by QUILT_NOTEBOOK environment variable",
+			{dir: notebook},
+		)
+	}
+	if (!notebook) {
+		notebook = findNearestQuiltNotebook(process.cwd())
+	}
+	if (!notebook) {
+		logger.debug(
+			"getActiveNotebook",
+			"no notebook found in current directory, checking for a default notebook",
+		)
+		const notebook = process.env["QUILT_DEFAULT_NOTEBOOK"]
+		if (notebook) {
+			logger.debug(
+				"getActiveNotebook",
+				"found default notebook with $QUILT_DEFAULT_NOTEBOOK",
+				{dir: notebook},
+			)
+		}
+	}
+	if (!notebook) {
+		throw logger.newError("getActiveNotebook", "could not find a notebook")
+	}
+	if (!isDirectoryQuiltNotebook(notebook)) {
+		throw logger.newError(
+			"getActiveNotebook",
+			"directory is not a valid notebook",
+			{dir: notebook},
+		)
+	}
+	return notebook
 }
 
 async function getTodos(config: AppConfig): Promise<Todo[]> {
@@ -269,4 +294,7 @@ function uuid(prefix: string) {
 	return `${prefix}_${crypto.randomUUID().slice(2)}`
 }
 
-main(process.argv.slice(2))
+main(process.argv.slice(2)).catch((err) => {
+	console.error(err)
+	process.exit(1)
+})
