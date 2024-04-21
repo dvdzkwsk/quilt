@@ -1,0 +1,67 @@
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+}
+
+:root {
+	--spacing-1: 2px;
+	--spacing-2: 4px;
+	--spacing-3: 8px;
+	--spacing-4: 12px;
+	--spacing-5: 16px;
+	--spacing-6: 24px;
+}
+
+.flex {
+	flex: 1;
+}
+
+a {
+	text-decoration: none;
+	color: inherit;
+}
+
+.AppLayout {
+	display: flex;
+	flex-direction: column;
+	height: 100dvh;
+	width: 100dvw;
+}
+
+.AppViewport {
+	display: flex;
+	flex: 1;
+}
+
+.AppFooter {
+	height: 32px;
+	background: var(--bgSecondary);
+	border-block-start: 1px solid var(--bgSecondaryBorder);
+}
+
+.Panel {
+	--borderColor: var(--bgPrimaryBorder);
+
+	flex-basis: 280px;
+	background: var(--bgPrimary);
+}
+
+.Panel-secondary {
+	--borderColor: var(--bgSecondaryBorder);
+
+	background: var(--bgSecondary);
+}
+
+.Panel.left {
+	border-inline-end: 1px solid var(--borderColor);
+}
+
+.Panel.right {
+	border-inline-start: 1px solid var(--borderColor);
+}
