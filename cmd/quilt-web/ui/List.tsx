@@ -16,11 +16,12 @@ export const List = <T,>({
 	items,
 	renderItem,
 	selectable,
-	apiRef,
 	onConfirmItem,
 }: ListProps<T>) => {
 	const listRef = React.useRef<HTMLDivElement>(null!)
 	const [focusedIndex, setFocusedIndex] = React.useState(0)
+	const focusedItemRef = React.useRef(items[focusedIndex])
+	focusedItemRef.current = items[focusedIndex]
 
 	React.useEffect(() => {
 		if (!listRef.current) return
@@ -29,7 +30,7 @@ export const List = <T,>({
 			if (e.key === "Enter") {
 				if (!selectable) {
 					e.preventDefault()
-					const item = apiRef.current.getFocusedItem()
+					const item = focusedItemRef.current
 					if (item) {
 						onConfirmItem(item, {focus: true})
 					}
@@ -61,13 +62,6 @@ export const List = <T,>({
 		}
 	}, [listRef])
 
-	React.useImperativeHandle(apiRef, (): ListApi<T> => {
-		return {
-			getFocusedItem() {
-				return items[focusedIndex]
-			},
-		}
-	})
 	return (
 		<div className="List" ref={listRef}>
 			{items.map((item, index) => {
@@ -87,9 +81,6 @@ export const List = <T,>({
 						className={cx("ListItem", cx(focused && "focus"))}
 						onClick={() => {
 							onConfirmItem(item, {focus: false})
-						}}
-						onDoubleClick={() => {
-							onConfirmItem(item, {focus: true})
 						}}
 					>
 						{renderItem(item, focused)}

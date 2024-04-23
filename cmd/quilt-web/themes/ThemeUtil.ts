@@ -1,16 +1,5 @@
 import {AppContext} from "../App.js"
 
-export const THEME_UTILS = {
-	spacing: {
-		"1": "2px",
-		"2": "4px",
-		"3": "8px",
-		"4": "12px",
-		"5": "16px",
-		"6": "24px",
-	},
-} as const
-
 export interface Theme {
 	name: string
 	tokens: {
@@ -48,12 +37,27 @@ export function setTheme(context: AppContext, theme: Theme) {
 	document.documentElement.setAttribute("data-theme", theme.name)
 }
 
-export const theme = {
-	vars: {
-		bg(variant: "primary" | "secondary") {
-			return variant === "primary"
-				? `var(--bgPrimary)`
-				: `var(--bgSecondary)`
-		},
+export const ThemeUtil = {
+	spacing: {
+		"1": "2px",
+		"2": "4px",
+		"3": "8px",
+		"4": "12px",
+		"5": "16px",
+		"6": "24px",
 	},
+	bg(variant: "primary" | "secondary") {
+		return variant === "primary" ? `var(--bgPrimary)` : `var(--bgSecondary)`
+	},
+} as const
+
+export function injectThemeUtilities() {
+	const sheet = new CSSStyleSheet()
+	let css = ":root {\n"
+	for (const [key, value] of Object.entries(ThemeUtil.spacing)) {
+		css += ` --spacing-${key}: ${value};\n`
+	}
+	css += "}"
+	sheet.replaceSync(css)
+	document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]
 }

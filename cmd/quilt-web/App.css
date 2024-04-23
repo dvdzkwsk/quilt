@@ -9,19 +9,6 @@ body {
 	margin: 0;
 }
 
-:root {
-	--spacing-1: 2px;
-	--spacing-2: 4px;
-	--spacing-3: 8px;
-	--spacing-4: 12px;
-	--spacing-5: 16px;
-	--spacing-6: 24px;
-}
-
-.flex {
-	flex: 1;
-}
-
 a {
 	text-decoration: none;
 	color: inherit;
@@ -64,4 +51,57 @@ a {
 
 .Panel.right {
 	border-inline-start: 1px solid var(--borderColor);
+}
+
+.NoteView {
+	display: flex;
+	width: 100%;
+	max-width: 900px;
+	margin: 0 auto;
+	padding: 32px 48px 0;
+}
+
+.NoteEditor {
+	flex: 1;
+	min-width: 0;
+}
+
+.NoteEditor .ProseMirror {
+	height: 100%;
+	width: 100%;
+	outline: none;
+}
+
+.NoteEditor .ProseMirror > :first-child {
+	margin-top: 0;
+}
+
+.NoteSidebar {
+	flex: 0 0 200px;
+	margin-inline-start: 1rem;
+}
+
+.NoteSidebar h2 {
+	margin: 0 0 0.5rem;
+}
+
+.SidebarSection:not(:first-of-type) {
+	margin-top: 1rem;
+}
+
+.TagList {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.Tag {
+}
+
+.TodoList {
+	display: flex;
+	flex-direction: column;
+}
+
+.Todo {
 }

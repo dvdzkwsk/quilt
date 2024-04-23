@@ -6,6 +6,20 @@ import {List, ListApi} from "./List.js"
 
 export const CommandPalette = () => {
 	const context = useAppContext()
+
+	React.useEffect(() => {
+		const handleKeydown = (e: KeyboardEvent) => {
+			if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+				context.state.showCommandPalette.value =
+					!context.state.showCommandPalette.value
+			}
+		}
+		document.addEventListener("keydown", handleKeydown)
+		return () => {
+			document.removeEventListener("keydown", handleKeydown)
+		}
+	}, [context])
+
 	if (!context.state.showCommandPalette.value) {
 		return null
 	}
@@ -80,6 +94,7 @@ const CommandPaletteImpl = ({onClose}: CommandPaletteImplProps) => {
 					}}
 					onConfirmItem={(command) => {
 						runCommand(context, command, {})
+						onClose()
 					}}
 				/>
 			</div>
