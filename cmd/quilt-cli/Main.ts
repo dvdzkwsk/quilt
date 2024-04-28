@@ -2,23 +2,13 @@ import * as path from "path"
 import * as fs from "fs"
 import * as cp from "child_process"
 import {z} from "zod"
-import remarkFrontmatter from "remark-frontmatter"
-import remarkGfm from "remark-gfm"
-import remarkParse from "remark-parse"
-import {unified} from "unified"
-import yaml from "yaml"
-import {type Root} from "node_modules/remark-parse/lib/index.js"
-import {
-	addDays,
-	endOfDay,
-	format,
-	isAfter,
-	isSameDay,
-	isValid,
-	startOfDay,
-	subDays,
-} from "date-fns"
+import {addDays, format, isValid, subDays} from "date-fns"
 import {Logger} from "@pkg/logger/Logger.js"
+import {
+	ensureJournalEntryForDate,
+	getJournalEntriesInDateRange,
+	printJournalEntry,
+} from "./Journal.js"
 
 const logger = new Logger("Main")
 
@@ -108,7 +98,7 @@ const COMMANDS: Command[] = [
 const AppConfig = z.object({
 	notebookDir: z.string(),
 })
-type AppConfig = z.infer<typeof AppConfig>
+export type AppConfig = z.infer<typeof AppConfig>
 
 async function main(osArgs: string[]) {
 	let commandName: string | undefined
@@ -176,54 +166,6 @@ async function ensureQuiltNotebook(dir: string) {
 	// TODO(david): register the notebook with global registry
 }
 
-async function getJournalEntriesInDateRange(
-	config: AppConfig,
-	startDate: Date,
-	endDate: Date,
-): Promise<Note[]> {
-	startDate = startOfDay(startDate)
-	endDate = endOfDay(endDate)
-
-	if (!isSameDay(startDate, endDate) && isAfter(startDate, endDate)) {
-		throw logger.newError(
-			"getJournalEntriesInDateRange",
-			"end date cannot be before start date",
-			{startDate, endDate},
-		)
-	}
-
-	logger.debug("getJournalEntriesInDateRange", "find notes in date range", {
-		startDate,
-		endDate,
-	})
-	const notes: Note[] = []
-	let date = startDate
-	while (!isAfter(date, endDate)) {
-		logger.debug(
-			"getJournalEntriesInDateRange",
-			"check for journal entry",
-			{date},
-		)
-		const note = await getJournalEntryForDate(config, date)
-		if (!note) {
-			logger.debug(
-				"getJournalEntriesInDateRange",
-				"no journal entry on date",
-				{date},
-			)
-		} else {
-			notes.push(note)
-		}
-		date = addDays(date, 1)
-	}
-	return notes
-}
-
-async function todosForDate(config: AppConfig, date: Date): Promise<Todo[]> {
-	const todos = await getTodos(config)
-	return []
-}
-
 function dateFromString(str: string): Date | null {
 	switch (str) {
 		case "today":
@@ -240,139 +182,6 @@ function dateFromString(str: string): Date | null {
 			return date
 		}
 	}
-}
-
-function parseDateRange(str: string): {
-	startDate: Date | null
-	endDate: Date | null
-} {
-	const [start, end] = str.split("..")
-	const result = {
-		startDate: dateFromString(start),
-		endDate: dateFromString(end),
-	}
-	// use <startdate>.. as shorthand for <startdate>..today
-	if (!result.endDate && str.includes("..")) {
-		result.endDate = new Date()
-	}
-	return result
-}
-
-const Todo = z.object({
-	id: z.string(),
-	title: z.string(),
-	notes: z.string().optional(),
-	repeat: z.string().optional(),
-})
-type Todo = z.infer<typeof Todo>
-
-const Note = z.object({
-	id: z.string(),
-	createdAt: z.date(),
-	title: z.string(),
-	content: z.string(),
-	todos: z.array(Todo),
-})
-type Note = z.infer<typeof Note>
-
-function journalFilepathForDate(config: AppConfig, date: Date): string {
-	const filename = format(date, "yyyy-MM-dd")
-	return path.join(config.notebookDir, ".quilt/journal", `${filename}.md`)
-}
-
-async function getJournalEntryForDate(
-	config: AppConfig,
-	date: Date,
-): Promise<Note | null> {
-	const file = journalFilepathForDate(config, date)
-
-	if (!fs.existsSync(file)) {
-		return null
-	}
-
-	const markdown = await fs.promises.readFile(file, "utf8")
-	const parsed = await parseMarkdown(markdown)
-
-	const todos: Todo[] = []
-	if (Array.isArray(parsed.frontmatter["todo"])) {
-		for (const item of parsed.frontmatter["todo"]) {
-			const parsedTodo = Todo.safeParse({id: "", title: item})
-			if (!parsedTodo.success) {
-				logger.warn("getJournalEntryForDate", "invalid todo", {
-					todo: item,
-				})
-			} else {
-				todos.push(parsedTodo.data)
-			}
-		}
-	}
-
-	return Note.parse({
-		id: parsed.frontmatter["id"],
-		title: parsed.frontmatter["title"],
-		createdAt: date,
-		content: markdown,
-		todos,
-	})
-}
-
-async function printJournalEntry(config: AppConfig, date: Date) {
-	const [todos, journalEntry] = await Promise.all([
-		await todosForDate(config, date),
-		await getJournalEntryForDate(config, date),
-	])
-	console.log({
-		todos,
-		journalEntry,
-	})
-}
-
-interface ParseMarkdownResult {
-	ast: Root
-	frontmatter: Record<string, string>
-}
-async function parseMarkdown(markdown: string): Promise<ParseMarkdownResult> {
-	const parser = unified()
-		.use(remarkParse)
-		.use(remarkFrontmatter)
-		.use(remarkGfm)
-
-	const doc = await parser.parse(markdown)
-	const firstChild = doc.children[0]
-	const result: ParseMarkdownResult = {
-		ast: doc,
-		frontmatter: {},
-	}
-	if (firstChild?.type === "yaml") {
-		const parsed = yaml.parse(firstChild.value)
-		result.frontmatter = parsed
-	}
-	return result
-}
-
-async function ensureJournalEntryForDate(
-	config: AppConfig,
-	date: Date,
-): Promise<string> {
-	const file = journalFilepathForDate(config, date)
-	if (!fs.existsSync(file)) {
-		const title = format(date, "EEE, MMM d yyyy")
-		const content = `---
-id: ${uuid("note")}
-title: ${title}
-createdAt: ${date.toISOString()}
-todo:
----
-
-`
-		await fs.promises.mkdir(path.dirname(file), {recursive: true})
-		await fs.promises.writeFile(file, content, "utf8")
-	}
-	return file
-}
-
-function openFileEditor(file: string) {
-	cp.execSync(`$EDITOR ${file}`, {stdio: "inherit"})
 }
 
 function isDirectoryQuiltNotebook(dir: string): boolean {
@@ -450,28 +259,28 @@ async function getActiveNotebook(): Promise<string> {
 	return notebook
 }
 
-async function getTodos(config: AppConfig): Promise<Todo[]> {
-	const file = path.join(config.notebookDir, ".quilt", "todos.json")
-	const text = await fs.promises.readFile(file, "utf8")
-	const data = JSON.parse(text)
-	const todo = data.todo
-	if (!Array.isArray(todo)) {
-		return []
+function parseDateRange(str: string): {
+	startDate: Date | null
+	endDate: Date | null
+} {
+	const [start, end] = str.split("..")
+	const result = {
+		startDate: dateFromString(start),
+		endDate: dateFromString(end),
 	}
-	const result: Todo[] = []
-	for (const json of todo) {
-		const parseResult = Todo.safeParse(json)
-		if (!parseResult.success) {
-			logger.warn("getTodos", "invalid todo", {todo: json})
-			continue
-		}
-		result.push(parseResult.data)
+	// use <startdate>.. as shorthand for <startdate>..today
+	if (!result.endDate && str.includes("..")) {
+		result.endDate = new Date()
 	}
 	return result
 }
 
-function uuid(prefix: string) {
+export function uuid(prefix: string) {
 	return `${prefix}_${crypto.randomUUID().slice(2)}`
+}
+
+export function openFileEditor(file: string) {
+	cp.execSync(`$EDITOR ${file}`, {stdio: "inherit"})
 }
 
 ;(async () => {
