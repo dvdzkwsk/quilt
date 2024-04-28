@@ -12,8 +12,9 @@ import {
 	addDays,
 	endOfDay,
 	format,
+	isAfter,
+	isSameDay,
 	isValid,
-	parseISO,
 	startOfDay,
 	subDays,
 } from "date-fns"
@@ -87,27 +88,22 @@ const COMMANDS: Command[] = [
 			if (!endDate) {
 				endDate = startDate
 			}
-			startDate = startOfDay(startDate)
-			endDate = endOfDay(endDate)
-			console.log(
-				"todo: print for:\n  from: %s\n    to: %s",
-				startDate.toLocaleString(),
-				endDate.toLocaleString(),
+			const notes = await getJournalEntriesInDateRange(
+				config,
+				startDate,
+				endDate,
 			)
+			for (const note of notes) {
+				const title = format(note.createdAt, "EEE, MMM d yyyy")
+				console.log("%s", title)
+				for (const todo of note.todos) {
+					console.log("[ ] %s", todo.title)
+				}
+				console.log("")
+			}
 		},
 	},
 ]
-
-function parseDateRange(str: string): {
-	startDate: Date | null
-	endDate: Date | null
-} {
-	const [start, end] = str.split("..")
-	return {
-		startDate: dateFromString(start),
-		endDate: dateFromString(end),
-	}
-}
 
 const AppConfig = z.object({
 	notebookDir: z.string(),
@@ -180,6 +176,49 @@ async function ensureQuiltNotebook(dir: string) {
 	// TODO(david): register the notebook with global registry
 }
 
+async function getJournalEntriesInDateRange(
+	config: AppConfig,
+	startDate: Date,
+	endDate: Date,
+): Promise<Note[]> {
+	startDate = startOfDay(startDate)
+	endDate = endOfDay(endDate)
+
+	if (!isSameDay(startDate, endDate) && isAfter(startDate, endDate)) {
+		throw logger.newError(
+			"getJournalEntriesInDateRange",
+			"end date cannot be before start date",
+			{startDate, endDate},
+		)
+	}
+
+	logger.debug("getJournalEntriesInDateRange", "find notes in date range", {
+		startDate,
+		endDate,
+	})
+	const notes: Note[] = []
+	let date = startDate
+	while (!isAfter(date, endDate)) {
+		logger.debug(
+			"getJournalEntriesInDateRange",
+			"check for journal entry",
+			{date},
+		)
+		const note = await getJournalEntryForDate(config, date)
+		if (!note) {
+			logger.debug(
+				"getJournalEntriesInDateRange",
+				"no journal entry on date",
+				{date},
+			)
+		} else {
+			notes.push(note)
+		}
+		date = addDays(date, 1)
+	}
+	return notes
+}
+
 async function todosForDate(config: AppConfig, date: Date): Promise<Todo[]> {
 	const todos = await getTodos(config)
 	return []
@@ -203,6 +242,22 @@ function dateFromString(str: string): Date | null {
 	}
 }
 
+function parseDateRange(str: string): {
+	startDate: Date | null
+	endDate: Date | null
+} {
+	const [start, end] = str.split("..")
+	const result = {
+		startDate: dateFromString(start),
+		endDate: dateFromString(end),
+	}
+	// use <startdate>.. as shorthand for <startdate>..today
+	if (!result.endDate && str.includes("..")) {
+		result.endDate = new Date()
+	}
+	return result
+}
+
 const Todo = z.object({
 	id: z.string(),
 	title: z.string(),
@@ -213,6 +268,7 @@ type Todo = z.infer<typeof Todo>
 
 const Note = z.object({
 	id: z.string(),
+	createdAt: z.date(),
 	title: z.string(),
 	content: z.string(),
 	todos: z.array(Todo),
@@ -224,7 +280,7 @@ function journalFilepathForDate(config: AppConfig, date: Date): string {
 	return path.join(config.notebookDir, ".quilt/journal", `${filename}.md`)
 }
 
-async function loadJournalEntry(
+async function getJournalEntryForDate(
 	config: AppConfig,
 	date: Date,
 ): Promise<Note | null> {
@@ -236,19 +292,34 @@ async function loadJournalEntry(
 
 	const markdown = await fs.promises.readFile(file, "utf8")
 	const parsed = await parseMarkdown(markdown)
+
+	const todos: Todo[] = []
+	if (Array.isArray(parsed.frontmatter["todo"])) {
+		for (const item of parsed.frontmatter["todo"]) {
+			const parsedTodo = Todo.safeParse({id: "", title: item})
+			if (!parsedTodo.success) {
+				logger.warn("getJournalEntryForDate", "invalid todo", {
+					todo: item,
+				})
+			} else {
+				todos.push(parsedTodo.data)
+			}
+		}
+	}
+
 	return Note.parse({
 		id: parsed.frontmatter["id"],
 		title: parsed.frontmatter["title"],
-		createdAt: parseISO(parsed.frontmatter["createdAt"]),
+		createdAt: date,
 		content: markdown,
-		todos: [],
+		todos,
 	})
 }
 
 async function printJournalEntry(config: AppConfig, date: Date) {
 	const [todos, journalEntry] = await Promise.all([
 		await todosForDate(config, date),
-		await loadJournalEntry(config, date),
+		await getJournalEntryForDate(config, date),
 	])
 	console.log({
 		todos,
