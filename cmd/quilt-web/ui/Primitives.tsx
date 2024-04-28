@@ -34,3 +34,10 @@ export const Flex = ({
 		</div>
 	)
 }
+
+interface PanelProps extends FlexProps {
+	id: string
+}
+export const Panel = ({className, ...rest}: PanelProps) => {
+	return <Flex className={cx("Panel", className)} {...rest} />
+}

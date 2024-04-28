@@ -8,39 +8,147 @@ import remarkParse from "remark-parse"
 import {unified} from "unified"
 import yaml from "yaml"
 import {type Root} from "node_modules/remark-parse/lib/index.js"
-import {addDays, format, isValid, parseISO, subDays} from "date-fns"
+import {
+	addDays,
+	endOfDay,
+	format,
+	isValid,
+	parseISO,
+	startOfDay,
+	subDays,
+} from "date-fns"
 import {Logger} from "@pkg/logger/Logger.js"
 
 const logger = new Logger("Main")
+
+interface Command {
+	name: string
+	run(args: string[]): void
+}
+
+const COMMANDS: Command[] = [
+	{
+		name: "edit",
+		async run(args: string[]) {
+			const config = await loadAppConfig()
+			const date = dateFromString(args[0] ?? "today")
+			if (!date) {
+				throw new Error("invalid date: '" + args[1] + "'")
+			}
+			const file = await ensureJournalEntryForDate(config, date)
+			await openFileEditor(file)
+		},
+	},
+	{
+		name: "init",
+		async run(args: string[]) {
+			await ensureQuiltNotebook(process.cwd())
+		},
+	},
+	{
+		name: "journal",
+		async run(args: string[]) {
+			const config = await loadAppConfig()
+			const date = dateFromString(args[0] ?? "today")
+			if (!date) {
+				throw new Error("invalid date: '" + args[0] + "'")
+			}
+			const file = await ensureJournalEntryForDate(config, date)
+			await openFileEditor(file)
+		},
+	},
+	{
+		name: "show",
+		async run(args: string[]) {
+			const config = await loadAppConfig()
+			const date = dateFromString(args[0])
+			if (!date) {
+				throw new Error("invalid date: '" + args[0] + "'")
+			}
+			await printJournalEntry(config, date)
+		},
+	},
+	{
+		name: "today",
+		async run(args: string[]) {
+			const config = await loadAppConfig()
+			const date = dateFromString("today")!
+			await printJournalEntry(config, date)
+		},
+	},
+	{
+		name: "todo",
+		async run(args: string[]) {
+			const config = await loadAppConfig()
+			let {startDate, endDate} = parseDateRange(args[0] ?? "today")
+			if (!startDate) {
+				throw new Error("invalid date: '" + args[0] + "'")
+			}
+			if (!endDate) {
+				endDate = startDate
+			}
+			startDate = startOfDay(startDate)
+			endDate = endOfDay(endDate)
+			console.log(
+				"todo: print for:\n  from: %s\n    to: %s",
+				startDate.toLocaleString(),
+				endDate.toLocaleString(),
+			)
+		},
+	},
+]
+
+function parseDateRange(str: string): {
+	startDate: Date | null
+	endDate: Date | null
+} {
+	const [start, end] = str.split("..")
+	return {
+		startDate: dateFromString(start),
+		endDate: dateFromString(end),
+	}
+}
 
 const AppConfig = z.object({
 	notebookDir: z.string(),
 })
 type AppConfig = z.infer<typeof AppConfig>
 
-async function main(args: string[]) {
-	let command = args[0]
+async function main(osArgs: string[]) {
+	let commandName: string | undefined
 
-	if (command === "init") {
-		await ensureQuiltNotebook(process.cwd())
+	const args: string[] = []
+	for (const arg of osArgs) {
+		if (arg.startsWith("-")) {
+			args.push(arg)
+			continue
+		}
+		if (!commandName) {
+			commandName = arg
+		} else {
+			args.push(arg)
+		}
+	}
+	if (!commandName) {
+		printUsage()
 		return
 	}
-
-	const config = await loadAppConfig()
-	if (isRelativeDateSpecifier(command)) {
-		const date = dateFromString(command)
-		const [todos, journalEntry] = await Promise.all([
-			await getTodosForDate(config, date),
-			await loadJournalEntry(config, date),
-		])
-		console.log({todos, journalEntry})
+	const command = COMMANDS.find((cmd) => cmd.name === commandName)
+	if (!command) {
+		throw new Error("unknown command: " + commandName)
 	}
-	switch (command) {
-		case "journal": {
-			const date = dateFromString(args[1] ?? "today")
-			await openJournalEntry(config, date)
-			break
-		}
+	await command.run(args)
+}
+
+function printUsage() {
+	console.log("")
+	console.log("Usage: quilt <command>")
+	console.log("")
+	console.log("Available commands:")
+	for (const command of COMMANDS.sort((a, b) =>
+		a.name.localeCompare(b.name),
+	)) {
+		console.log("  %s ", command.name)
 	}
 }
 
@@ -72,18 +180,12 @@ async function ensureQuiltNotebook(dir: string) {
 	// TODO(david): register the notebook with global registry
 }
 
-async function getTodosForDate(config: AppConfig, date: Date): Promise<Todo[]> {
+async function todosForDate(config: AppConfig, date: Date): Promise<Todo[]> {
 	const todos = await getTodos(config)
 	return []
 }
 
-const RELATIVE_DATE_SPECIFIERS = ["today", "yesterday", "tomorrow"]
-
-function isRelativeDateSpecifier(str: string) {
-	return RELATIVE_DATE_SPECIFIERS.includes(str)
-}
-
-function dateFromString(str: string): Date {
+function dateFromString(str: string): Date | null {
 	switch (str) {
 		case "today":
 			return new Date()
@@ -94,7 +196,7 @@ function dateFromString(str: string): Date {
 		default: {
 			const date = new Date(str)
 			if (!isValid(date)) {
-				throw new Error(`invalid date: "${str}"`)
+				return null
 			}
 			return date
 		}
@@ -117,24 +219,16 @@ const Note = z.object({
 })
 type Note = z.infer<typeof Note>
 
-function getJournalEntryFilename(date: Date): string {
-	return format(date, "yyyy-MM-dd")
-}
-
-function getJournalEntryFilepath(config: AppConfig, date: Date): string {
-	const filename = getJournalEntryFilename(date)
+function journalFilepathForDate(config: AppConfig, date: Date): string {
+	const filename = format(date, "yyyy-MM-dd")
 	return path.join(config.notebookDir, ".quilt/journal", `${filename}.md`)
-}
-
-function getJournalEntryTitle(date: Date): string {
-	return format(date, "EEE, MMM d yyyy")
 }
 
 async function loadJournalEntry(
 	config: AppConfig,
 	date: Date,
 ): Promise<Note | null> {
-	const file = getJournalEntryFilepath(config, date)
+	const file = journalFilepathForDate(config, date)
 
 	if (!fs.existsSync(file)) {
 		return null
@@ -145,9 +239,20 @@ async function loadJournalEntry(
 	return Note.parse({
 		id: parsed.frontmatter["id"],
 		title: parsed.frontmatter["title"],
-		createdat: parseISO(parsed.frontmatter["createdAt"]),
+		createdAt: parseISO(parsed.frontmatter["createdAt"]),
 		content: markdown,
 		todos: [],
+	})
+}
+
+async function printJournalEntry(config: AppConfig, date: Date) {
+	const [todos, journalEntry] = await Promise.all([
+		await todosForDate(config, date),
+		await loadJournalEntry(config, date),
+	])
+	console.log({
+		todos,
+		journalEntry,
 	})
 }
 
@@ -160,6 +265,7 @@ async function parseMarkdown(markdown: string): Promise<ParseMarkdownResult> {
 		.use(remarkParse)
 		.use(remarkFrontmatter)
 		.use(remarkGfm)
+
 	const doc = await parser.parse(markdown)
 	const firstChild = doc.children[0]
 	const result: ParseMarkdownResult = {
@@ -173,10 +279,13 @@ async function parseMarkdown(markdown: string): Promise<ParseMarkdownResult> {
 	return result
 }
 
-async function openJournalEntry(config: AppConfig, date: Date) {
-	const file = getJournalEntryFilepath(config, date)
+async function ensureJournalEntryForDate(
+	config: AppConfig,
+	date: Date,
+): Promise<string> {
+	const file = journalFilepathForDate(config, date)
 	if (!fs.existsSync(file)) {
-		const title = getJournalEntryTitle(date)
+		const title = format(date, "EEE, MMM d yyyy")
 		const content = `---
 id: ${uuid("note")}
 title: ${title}
@@ -188,7 +297,7 @@ todo:
 		await fs.promises.mkdir(path.dirname(file), {recursive: true})
 		await fs.promises.writeFile(file, content, "utf8")
 	}
-	openFileEditor(file)
+	return file
 }
 
 function openFileEditor(file: string) {
@@ -294,7 +403,11 @@ function uuid(prefix: string) {
 	return `${prefix}_${crypto.randomUUID().slice(2)}`
 }
 
-main(process.argv.slice(2)).catch((err) => {
-	console.error(err)
-	process.exit(1)
-})
+;(async () => {
+	try {
+		await main(process.argv.slice(2))
+	} catch (error) {
+		console.error(error)
+		process.exit(1)
+	}
+})()

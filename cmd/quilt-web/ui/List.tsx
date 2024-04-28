@@ -1,42 +1,21 @@
 import * as React from "react"
 import {cx} from "@pkg/util/ReactUtil.js"
 
-export interface ListApi<T> {
-	getFocusedItem(): T | null
-}
-
 interface ListProps<T> {
 	items: T[]
-	renderItem(item: T, focused: boolean): React.ReactNode
-	onConfirmItem(item: T, detail: {focus: boolean}): void
-	selectable?: boolean
-	apiRef: React.MutableRefObject<ListApi<T>>
+	renderItem(item: T): React.ReactNode
 }
-export const List = <T,>({
-	items,
-	renderItem,
-	selectable,
-	onConfirmItem,
-}: ListProps<T>) => {
+export const List = <T,>({items, renderItem}: ListProps<T>) => {
 	const listRef = React.useRef<HTMLDivElement>(null!)
-	const [focusedIndex, setFocusedIndex] = React.useState(0)
-	const focusedItemRef = React.useRef(items[focusedIndex])
-	focusedItemRef.current = items[focusedIndex]
+	const [focusedItem, setFocusedItem] = React.useState<T | null>(null)
+	const itemsRef = React.useRef<T[]>(items)
+	const focusedItemRef = React.useRef(focusedItem)
+	focusedItemRef.current = focusedItem
 
 	React.useEffect(() => {
 		if (!listRef.current) return
 
 		const handleKeydown = (e: KeyboardEvent) => {
-			if (e.key === "Enter") {
-				if (!selectable) {
-					e.preventDefault()
-					const item = focusedItemRef.current
-					if (item) {
-						onConfirmItem(item, {focus: true})
-					}
-					return
-				}
-			}
 			let dy = 0
 			if (e.key === "ArrowUp") {
 				dy = -1
@@ -44,15 +23,16 @@ export const List = <T,>({
 				dy = 1
 			}
 			if (dy !== 0) {
-				setFocusedIndex((prev) => {
-					let nextFocusedIndex = prev + dy
+				setFocusedItem((item) => {
+					let index = itemsRef.current.indexOf(item!)
+					index += dy
 					const max = items.length - 1
-					if (nextFocusedIndex > max) {
-						nextFocusedIndex = 0
-					} else if (nextFocusedIndex < 0) {
-						nextFocusedIndex = max
+					if (index > max) {
+						index = 0
+					} else if (index < 0) {
+						index = max
 					}
-					return nextFocusedIndex
+					return itemsRef.current[index]
 				})
 			}
 		}
@@ -65,7 +45,7 @@ export const List = <T,>({
 	return (
 		<div className="List" ref={listRef}>
 			{items.map((item, index) => {
-				const focused = index === focusedIndex
+				const focused = index === focusedItem
 				return (
 					<div
 						role="treeitem"
@@ -79,11 +59,8 @@ export const List = <T,>({
 						aria-label={undefined} // TOOD
 						aria-expanded={undefined} // TOOD
 						className={cx("ListItem", cx(focused && "focus"))}
-						onClick={() => {
-							onConfirmItem(item, {focus: false})
-						}}
 					>
-						{renderItem(item, focused)}
+						{renderItem(item)}
 					</div>
 				)
 			})}

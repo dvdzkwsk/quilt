@@ -5,6 +5,7 @@ import {Theme} from "./themes/ThemeUtil.js"
 import {ThemeQuiltLight} from "./themes/ThemeQuiltLight.js"
 import {CommandPalette} from "./ui/CommandPalette.js"
 import {Note, NoteEditor} from "./Editor.js"
+import {Panel} from "./ui/Primitives.js"
 
 const AppContext = React.createContext<AppContext>(null!)
 
@@ -44,7 +45,9 @@ export const App = ({context}: AppProps) => {
 		<AppContext.Provider value={context}>
 			<div className="AppLayout">
 				<div className="AppViewport">
+					{!zenMode && <PrimarySidebar />}
 					<ActiveNote />
+					{!zenMode && <SecondarySidebar />}
 				</div>
 				{!zenMode && <div className="AppFooter"></div>}
 			</div>
@@ -53,11 +56,25 @@ export const App = ({context}: AppProps) => {
 	)
 }
 
+const PrimarySidebar = () => {
+	return <Panel id="PrimarySidebar">PrimarySidebar</Panel>
+}
+
+const SecondarySidebar = () => {
+	return <Panel id="SecondarySidebar">SecondarySidebar</Panel>
+}
+
 const ActiveNote = () => {
 	const context = useAppContext()
+	const id = `Editor-${React.useId()}`
 	const activeNote = context.state.activeNote.value
-	if (!activeNote) {
-		return null
-	}
-	return <NoteEditor note={activeNote} />
+	return (
+		<Panel id={id}>
+			{activeNote ? (
+				<NoteEditor note={activeNote} />
+			) : (
+				<div>Open a note to start editing.</div>
+			)}
+		</Panel>
+	)
 }
