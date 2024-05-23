@@ -85,20 +85,22 @@ async function ensureNodeModulesInstalled() {
 
 async function ensureNodeModulesUpToDate() {}
 
-// naive semver check
-function meetsMinimumVersion(version, minimumVersion) {
+// less naïve semver check
+function meetsMinimumVersion(minimumVersion, version) {
 	const parsedVersion = parseSemver(version)
 	const parsedMinimumVersion = parseSemver(minimumVersion)
-	if (parsedVersion.major < parsedMinimumVersion.major) {
-		return false
-	}
-	if (parsedVersion.minor < parsedMinimumVersion.minor) {
-		return false
-	}
-	if (parsedVersion.patch < parsedMinimumVersion.patch) {
-		return false
-	}
-	return true
+    if (parsedVersion.major > parsedMinimumVersion.major) {
+        return true;
+    } else if (parsedVersion.major === parsedMinimumVersion.major) {
+        if (parsedVersion.minor > parsedMinimumVersion.minor) {
+            return true;
+        } else if (parsedVersion.minor === parsedMinimumVersion.minor) {
+            if (parsedVersion.patch >= parsedMinimumVersion.patch) {
+                return true;
+            }
+        }
+    }
+    return false
 }
 
 function parseSemver(version) {
