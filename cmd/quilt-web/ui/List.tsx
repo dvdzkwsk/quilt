@@ -1,21 +1,46 @@
+import "./List.css"
 import * as React from "react"
-import {cx} from "@pkg/util/ReactUtil.js"
+import {cx, useForceUpdate} from "@pkg/util/ReactUtil.js"
 
-interface ListProps<T> {
+export interface ListProps<T> {
 	items: T[]
+	focusZoneRef?: React.MutableRefObject<HTMLDivElement | null>
+	autoFocusFirstItem?: boolean
 	renderItem(item: T): React.ReactNode
+	onConfirmItem(item: T): void
 }
-export const List = <T,>({items, renderItem}: ListProps<T>) => {
+
+export const List = <T,>({
+	items,
+	renderItem,
+	onConfirmItem,
+	autoFocusFirstItem,
+	focusZoneRef,
+}: ListProps<T>) => {
+	const forceUpdate = useForceUpdate()
 	const listRef = React.useRef<HTMLDivElement>(null!)
-	const [focusedItem, setFocusedItem] = React.useState<T | null>(null)
 	const itemsRef = React.useRef<T[]>(items)
-	const focusedItemRef = React.useRef(focusedItem)
-	focusedItemRef.current = focusedItem
+	const focusedItemRef = React.useRef<T | null>(null)
 
 	React.useEffect(() => {
-		if (!listRef.current) return
+		focusedItemRef.current = null
+		if (autoFocusFirstItem) {
+			focusedItemRef.current = items[0]
+			forceUpdate()
+		}
+	}, [items, autoFocusFirstItem])
+
+	React.useEffect(() => {
+		const focusZone = focusZoneRef?.current ?? listRef.current
 
 		const handleKeydown = (e: KeyboardEvent) => {
+			if (e.key === "Enter") {
+				const item = focusedItemRef.current ?? itemsRef.current[0]
+				if (item) {
+					onConfirmItem(item)
+				}
+				return
+			}
 			let dy = 0
 			if (e.key === "ArrowUp") {
 				dy = -1
@@ -23,29 +48,28 @@ export const List = <T,>({items, renderItem}: ListProps<T>) => {
 				dy = 1
 			}
 			if (dy !== 0) {
-				setFocusedItem((item) => {
-					let index = itemsRef.current.indexOf(item!)
-					index += dy
-					const max = items.length - 1
-					if (index > max) {
-						index = 0
-					} else if (index < 0) {
-						index = max
-					}
-					return itemsRef.current[index]
-				})
+				let index = itemsRef.current.indexOf(focusedItemRef.current!)
+				index += dy
+				const max = items.length - 1
+				if (index > max) {
+					index = 0
+				} else if (index < 0) {
+					index = max
+				}
+				focusedItemRef.current = itemsRef.current[index]
+				forceUpdate()
 			}
 		}
-		listRef.current.addEventListener("keydown", handleKeydown)
+		focusZone.addEventListener("keydown", handleKeydown)
 		return () => {
-			listRef.current.removeEventListener("keydown", handleKeydown)
+			focusZone.removeEventListener("keydown", handleKeydown)
 		}
 	}, [listRef])
 
 	return (
 		<div className="List" ref={listRef}>
 			{items.map((item, index) => {
-				const focused = index === focusedItem
+				const focused = item === focusedItemRef.current
 				return (
 					<div
 						role="treeitem"
@@ -58,7 +82,10 @@ export const List = <T,>({items, renderItem}: ListProps<T>) => {
 						aria-level={undefined} // TOOD
 						aria-label={undefined} // TOOD
 						aria-expanded={undefined} // TOOD
-						className={cx("ListItem", cx(focused && "focus"))}
+						className={cx(
+							"ListItem",
+							cx(focused && "ListItem-focus"),
+						)}
 					>
 						{renderItem(item)}
 					</div>

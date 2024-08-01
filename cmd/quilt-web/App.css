@@ -21,7 +21,7 @@ a {
 	width: 100dvw;
 }
 
-.AppViewport {
+.AppBody {
 	display: flex;
 	flex: 1;
 }
@@ -30,78 +30,4 @@ a {
 	height: 32px;
 	background: var(--bgSecondary);
 	border-block-start: 1px solid var(--bgSecondaryBorder);
-}
-
-.Panel {
-	--borderColor: var(--bgPrimaryBorder);
-
-	flex-basis: 280px;
-	background: var(--bgPrimary);
-}
-
-.Panel-secondary {
-	--borderColor: var(--bgSecondaryBorder);
-
-	background: var(--bgSecondary);
-}
-
-.Panel.left {
-	border-inline-end: 1px solid var(--borderColor);
-}
-
-.Panel.right {
-	border-inline-start: 1px solid var(--borderColor);
-}
-
-.NoteView {
-	display: flex;
-	width: 100%;
-	max-width: 900px;
-	margin: 0 auto;
-	padding: 32px 48px 0;
-}
-
-.NoteEditor {
-	flex: 1;
-	min-width: 0;
-}
-
-.NoteEditor .ProseMirror {
-	height: 100%;
-	width: 100%;
-	outline: none;
-}
-
-.NoteEditor .ProseMirror > :first-child {
-	margin-top: 0;
-}
-
-.NoteSidebar {
-	flex: 0 0 200px;
-	margin-inline-start: 1rem;
-}
-
-.NoteSidebar h2 {
-	margin: 0 0 0.5rem;
-}
-
-.SidebarSection:not(:first-of-type) {
-	margin-top: 1rem;
-}
-
-.TagList {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 4px;
-}
-
-.Tag {
-}
-
-.TodoList {
-	display: flex;
-	flex-direction: column;
-}
-
-.Todo {
 }

@@ -1,33 +1,27 @@
 import "./App.css"
 import * as React from "react"
 import {Signal, signal} from "@preact/signals"
-import {Theme} from "./themes/ThemeUtil.js"
-import {ThemeQuiltLight} from "./themes/ThemeQuiltLight.js"
-import {CommandPalette} from "./ui/CommandPalette.js"
-import {Note, NoteEditor} from "./Editor.js"
-import {Panel} from "./ui/Primitives.js"
+import {Theme} from "./theme/ThemeUtil.js"
+import {ThemeQuiltLight} from "./theme/ThemeQuiltLight.js"
+import {SpotlightSpawner} from "./ui/Spotlight.js"
+import {Panel} from "./ui/Panel.js"
+import {DialogSpawner} from "./ui/Dialog.js"
 
 const AppContext = React.createContext<AppContext>(null!)
 
 export interface AppContext {
-	state: {
-		activeNote: Signal<Note | null>
-		showCommandPalette: Signal<boolean>
-		zenMode: Signal<boolean>
-	}
+	dialogContent: Signal<React.ReactNode | null>
+	showSpotlight: Signal<boolean>
 	settings: {
-		theme: Theme
+		theme: Signal<Theme>
 	}
 }
 export function createAppContext(): AppContext {
 	return {
-		state: {
-			activeNote: signal(null),
-			showCommandPalette: signal(false),
-			zenMode: signal(false),
-		},
+		dialogContent: signal(null),
+		showSpotlight: signal(false),
 		settings: {
-			theme: ThemeQuiltLight,
+			theme: signal(ThemeQuiltLight),
 		},
 	}
 }
@@ -40,41 +34,42 @@ interface AppProps {
 	context: AppContext
 }
 export const App = ({context}: AppProps) => {
-	const zenMode = context.state.zenMode
 	return (
 		<AppContext.Provider value={context}>
 			<div className="AppLayout">
-				<div className="AppViewport">
-					{!zenMode && <PrimarySidebar />}
-					<ActiveNote />
-					{!zenMode && <SecondarySidebar />}
+				<div className="AppBody">
+					<PrimarySidebar />
+					<Viewport />
+					<SecondarySidebar />
 				</div>
-				{!zenMode && <div className="AppFooter"></div>}
+				<div className="AppFooter"></div>
 			</div>
-			<CommandPalette />
+			<SpotlightSpawner />
+			<DialogSpawner />
 		</AppContext.Provider>
 	)
 }
 
 const PrimarySidebar = () => {
-	return <Panel id="PrimarySidebar">PrimarySidebar</Panel>
+	return (
+		<Panel id="PrimarySidebar" className="Panel-secondary Panel-left">
+			Primary Sidebar
+		</Panel>
+	)
 }
 
 const SecondarySidebar = () => {
-	return <Panel id="SecondarySidebar">SecondarySidebar</Panel>
+	return (
+		<Panel id="SecondarySidebar" className="Panel-secondary Panel-right">
+			Secondary Sidebar
+		</Panel>
+	)
 }
 
-const ActiveNote = () => {
-	const context = useAppContext()
-	const id = `Editor-${React.useId()}`
-	const activeNote = context.state.activeNote.value
+const Viewport = () => {
 	return (
-		<Panel id={id}>
-			{activeNote ? (
-				<NoteEditor note={activeNote} />
-			) : (
-				<div>Open a note to start editing.</div>
-			)}
+		<Panel id="Viewport" flex>
+			<div>Open a note to start editing.</div>
 		</Panel>
 	)
 }

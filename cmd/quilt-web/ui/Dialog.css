@@ -1,4 +1,4 @@
-.CommandPalette {
+.Dialog {
 	position: fixed;
 	top: 0;
 	left: 0;
@@ -13,10 +13,9 @@
 	z-index: 100;
 }
 
-.CommandPaletteModal {
-	width: 100%;
-	height: 200px;
-	max-width: 600px;
+.DialogContent {
+	min-width: 200px;
+	max-width: min(80dvw, 800px);
 	margin: 0 auto;
 	background: #fff;
 	box-shadow:

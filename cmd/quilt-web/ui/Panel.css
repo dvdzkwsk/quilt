@@ -1,0 +1,20 @@
+.Panel {
+	--borderColor: var(--bgPrimaryBorder);
+
+	flex-basis: 280px;
+	background: var(--bgPrimary);
+}
+
+.Panel-secondary {
+	--borderColor: var(--bgSecondaryBorder);
+
+	background: var(--bgSecondary);
+}
+
+.Panel-left {
+	border-inline-end: 1px solid var(--borderColor);
+}
+
+.Panel-right {
+	border-inline-start: 1px solid var(--borderColor);
+}

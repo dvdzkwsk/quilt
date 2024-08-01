@@ -1,3 +1,4 @@
+import {effect} from "@preact/signals"
 import {AppContext} from "../App.js"
 
 export interface Theme {
@@ -11,30 +12,6 @@ export interface Theme {
 		bgSecondaryBorder: string
 		focusOutline: string
 	}
-}
-
-const INJECTED_THEMES = new Set<string>()
-
-export function injectThemeAsStylesheet(theme: Theme) {
-	if (INJECTED_THEMES.has(theme.name)) {
-		return
-	}
-	const sheet = new CSSStyleSheet()
-	let css = ""
-	css += `[data-theme="${theme.name}"] {\n`
-	for (const [tokenName, tokenValue] of Object.entries(theme.tokens)) {
-		css += `--${tokenName}: ${tokenValue};\n`
-	}
-	css += `}`
-	sheet.replaceSync(css)
-	document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]
-	INJECTED_THEMES.add(theme.name)
-}
-
-export function setTheme(context: AppContext, theme: Theme) {
-	context.settings.theme = theme
-	injectThemeAsStylesheet(theme)
-	document.documentElement.setAttribute("data-theme", theme.name)
 }
 
 export const ThemeUtil = {
@@ -51,7 +28,34 @@ export const ThemeUtil = {
 	},
 } as const
 
-export function injectThemeUtilities() {
+const INJECTED_THEMES = new Set<string>()
+
+export function initTheming(context: AppContext) {
+	injectThemeUtilities()
+	effect(() => {
+		const currentTheme = context.settings.theme.value
+		injectThemeAsStylesheet(currentTheme)
+		document.documentElement.setAttribute("data-theme", currentTheme.name)
+	})
+}
+
+function injectThemeAsStylesheet(theme: Theme) {
+	if (INJECTED_THEMES.has(theme.name)) {
+		return
+	}
+	const sheet = new CSSStyleSheet()
+	let css = ""
+	css += `[data-theme="${theme.name}"] {\n`
+	for (const [tokenName, tokenValue] of Object.entries(theme.tokens)) {
+		css += `--${tokenName}: ${tokenValue};\n`
+	}
+	css += `}`
+	sheet.replaceSync(css)
+	document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]
+	INJECTED_THEMES.add(theme.name)
+}
+
+function injectThemeUtilities() {
 	const sheet = new CSSStyleSheet()
 	let css = ":root {\n"
 	for (const [key, value] of Object.entries(ThemeUtil.spacing)) {

@@ -1,13 +1,10 @@
 import * as ReactDOM from "react-dom/client"
 import {App, createAppContext} from "./App.js"
-import {injectThemeUtilities, setTheme} from "./themes/ThemeUtil.js"
-import {DEBUG_CommandOpenKitchenSinkNote, runCommand} from "./Commands.js"
+import {initTheming} from "./theme/ThemeUtil.js"
 
 async function main() {
 	const context = createAppContext()
-	injectThemeUtilities()
-	setTheme(context, context.settings.theme)
-	runCommand(context, DEBUG_CommandOpenKitchenSinkNote)
+	initTheming(context)
 
 	const root = ReactDOM.createRoot(document.getElementById("root")!)
 	root.render(<App context={context} />)

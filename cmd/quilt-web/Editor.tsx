@@ -7,7 +7,7 @@ import rehypeSanitize from "rehype-sanitize"
 import rehypeStringify from "rehype-stringify"
 import remarkParse from "remark-parse"
 import remarkRehype from "remark-rehype"
-import {Flex} from "./ui/Primitives.js"
+import {Flex} from "./ui/Flex.js"
 
 export interface Note {
 	content: string

@@ -1,11 +1,13 @@
 import {AppContext} from "./App.js"
-import {batch, signal} from "@preact/signals"
-import {KITCHEN_SINK_CONTENT, WELCOME_CONTENT} from "./Editor.js"
+import {batch} from "@preact/signals"
+import {openDialog} from "./ui/Dialog.js"
+import {Input} from "./ui/Form.js"
 
 interface CommandContext extends AppContext {}
 
 export interface Command<TOptions extends object = any> {
 	name: string
+	aliases?: string[]
 	handle(context: CommandContext, options: TOptions): any
 }
 
@@ -15,80 +17,32 @@ type CommandOptions<T extends Command> = Parameters<
 	? Parameters<T["handle"]>[1]
 	: {}
 
-export const CommandToggleZenMode = {
-	name: "Toggle Zen Mode",
+export const CommandCreateNote = {
+	name: "New Note",
+	aliases: ["Create Note"],
+	async handle(context) {},
+} satisfies Command
+
+export const CommandCreateTodo = {
+	name: "New Todo",
+	aliases: ["Create Todo"],
 	async handle(context) {
-		context.state.zenMode.value = !context.state.zenMode.value
+		openDialog(context, <TodoDialogContent />)
 	},
 } satisfies Command
+
+const TodoDialogContent = () => {
+	return (
+		<div>
+			<Input placeholder="Your todo..." autoFocus />
+		</div>
+	)
+}
 
 export const DEBUG_CommandResetApp = {
 	name: "DEBUG: Reset App",
 	async handle(context) {},
 } satisfies Command
-
-export const DEBUG_CommandOpenWelcomeNote = {
-	name: "DEBUG: Open Welcome Note",
-	async handle(context) {
-		const note = createExampleNote()
-		note.content = WELCOME_CONTENT
-		context.state.activeNote.value = note
-	},
-} satisfies Command
-
-export const DEBUG_CommandOpenKitchenSinkNote = {
-	name: "DEBUG: Open Kitchen Sink Note",
-	async handle(context) {
-		const note = createExampleNote()
-		note.content = KITCHEN_SINK_CONTENT
-		context.state.activeNote.value = note
-	},
-} satisfies Command
-
-function createExampleNote() {
-	return {
-		content: "",
-		tags: signal([
-			{id: "1", name: "home"},
-			{id: "2", name: "work"},
-			{id: "3", name: "kona"},
-			{id: "4", name: "chore"},
-			{id: "5", name: "important"},
-		]),
-		todos: signal([
-			{
-				id: "1",
-				content:
-					"this is an example todo with some extra long content so that it wraps to the next line.",
-				completedAt: null,
-			},
-			{
-				id: "2",
-				content:
-					"this is an example todo with some extra long content so that it wraps to the next line.",
-				completedAt: null,
-			},
-			{
-				id: "3",
-				content:
-					"this is an example todo with some extra long content so that it wraps to the next line.",
-				completedAt: null,
-			},
-			{
-				id: "4",
-				content:
-					"this is an example todo with some extra long content so that it wraps to the next line.",
-				completedAt: null,
-			},
-			{
-				id: "5",
-				content:
-					"this is an example todo with some extra long content so that it wraps to the next line.",
-				completedAt: null,
-			},
-		]),
-	}
-}
 
 export function runCommand<T extends Command>(
 	context: CommandContext,
@@ -100,10 +54,12 @@ export function runCommand<T extends Command>(
 	})
 }
 
-const DEBUG_COMMANDS: Command[] = [
-	DEBUG_CommandResetApp,
-	DEBUG_CommandOpenWelcomeNote,
-	DEBUG_CommandOpenKitchenSinkNote,
-]
+const DEBUG_COMMANDS: Command[] = [DEBUG_CommandResetApp]
 
-export const COMMANDS: Command[] = [...DEBUG_COMMANDS, CommandToggleZenMode]
+export const COMMANDS: Command[] = [
+	CommandCreateNote,
+	CommandCreateTodo,
+	...DEBUG_COMMANDS,
+].sort((a, b) => {
+	return a.name.localeCompare(b.name)
+})
