@@ -1,0 +1,27 @@
+{
+	"compilerOptions": {
+		"baseUrl": ".",
+		"forceConsistentCasingInFileNames": true,
+		"importHelpers": false,
+		"isolatedModules": true,
+		"jsx": "react-jsx",
+		"jsxImportSource": "react",
+		"lib": ["ESNext", "DOM"],
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noPropertyAccessFromIndexSignature": true,
+		"outDir": "dist",
+		"paths": {
+			"@pkg/*": ["./pkg/*"]
+		},
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"strict": true,
+		"target": "ES2020",
+		"typeRoots": ["types", "node_modules/@types"],
+		"useDefineForClassFields": true
+	}
+}

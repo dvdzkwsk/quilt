@@ -1,0 +1,21 @@
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	background: var(--bgApp);
+}
+
+a {
+	text-decoration: none;
+	color: inherit;
+}
+
+fieldset {
+	padding: 0;
+	margin: 0;
+}
